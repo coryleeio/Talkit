@@ -35,27 +35,26 @@ defaultLink.set('smooth', true);
 var allowableConnections =
 [
 	['dialogue.Text', 'dialogue.Text'],
-	['dialogue.Text', 'dialogue.Node'],
 	['dialogue.Text', 'dialogue.Choice'],
 	['dialogue.Text', 'dialogue.Set'],
+	['dialogue.Text', 'dialogue.Action'],
 	['dialogue.Text', 'dialogue.Branch'],
-	['dialogue.Node', 'dialogue.Text'],
-	['dialogue.Node', 'dialogue.Node'],
-	['dialogue.Node', 'dialogue.Choice'],
-	['dialogue.Node', 'dialogue.Set'],
-	['dialogue.Node', 'dialogue.Branch'],
 	['dialogue.Choice', 'dialogue.Text'],
-	['dialogue.Choice', 'dialogue.Node'],
 	['dialogue.Choice', 'dialogue.Set'],
+	['dialogue.Choice', 'dialogue.Action'],
 	['dialogue.Choice', 'dialogue.Branch'],
 	['dialogue.Set', 'dialogue.Text'],
-	['dialogue.Set', 'dialogue.Node'],
 	['dialogue.Set', 'dialogue.Set'],
+	['dialogue.Set', 'dialogue.Action'],
 	['dialogue.Set', 'dialogue.Branch'],
 	['dialogue.Branch', 'dialogue.Text'],
-	['dialogue.Branch', 'dialogue.Node'],
 	['dialogue.Branch', 'dialogue.Set'],
+	['dialogue.Branch', 'dialogue.Action'],
 	['dialogue.Branch', 'dialogue.Branch'],
+	['dialogue.Action', 'dialogue.Text'],
+	['dialogue.Action', 'dialogue.Action'],
+	['dialogue.Action', 'dialogue.Action'],
+	['dialogue.Action', 'dialogue.Branch'],
 ];
 
 function validateConnection(cellViewS, magnetS, cellViewT, magnetT, end, linkView)
@@ -314,24 +313,6 @@ joint.shapes.dialogue.ChoiceView = joint.shapes.devs.ModelView.extend(
 });
 
 
-joint.shapes.dialogue.Node = joint.shapes.devs.Model.extend(
-{
-	defaults: joint.util.deepSupplement
-	(
-		{
-			type: 'dialogue.Node',
-			inPorts: ['input'],
-			outPorts: ['output'],
-			attrs:
-			{
-				'.outPorts circle': { unlimitedConnections: ['dialogue.Choice'], }
-			},
-		},
-		joint.shapes.dialogue.Base.prototype.defaults
-	),
-});
-joint.shapes.dialogue.NodeView = joint.shapes.dialogue.BaseView;
-
 joint.shapes.dialogue.Text = joint.shapes.devs.Model.extend(
 {
 	defaults: joint.util.deepSupplement
@@ -340,11 +321,8 @@ joint.shapes.dialogue.Text = joint.shapes.devs.Model.extend(
 			type: 'dialogue.Text',
 			inPorts: ['input'],
 			outPorts: ['output'],
-			actor: '',
-			textarea: 'Start writing',
 			attrs:
 			{
-			  
 				'.outPorts circle': { unlimitedConnections: ['dialogue.Choice'], }
 			},
 		},
@@ -524,6 +502,50 @@ joint.shapes.dialogue.SetView = joint.shapes.dialogue.BaseView.extend(
 	},
 });
 
+joint.shapes.dialogue.Action = joint.shapes.devs.Model.extend(
+{
+	defaults: joint.util.deepSupplement
+	(
+		{
+		    type: 'dialogue.Action',
+		    inPorts: ['input'],
+		    outPorts: ['output'],
+		    size: { width: 200, height: 100, },
+		    value: '',
+		},
+		joint.shapes.dialogue.Base.prototype.defaults
+	),
+});
+joint.shapes.dialogue.ActionView = joint.shapes.dialogue.BaseView.extend(
+{
+	template:
+	[
+		'<div class="node">',
+		'<span class="label"></span>',
+		'<button class="delete">x</button>',
+		'<input type="text" class="name" placeholder="Action" />',
+		'<input type="text" class="value" placeholder="Parameter" />',
+		'</div>',
+	].join(''),
+
+	initialize: function()
+	{
+		joint.shapes.dialogue.BaseView.prototype.initialize.apply(this, arguments);
+		this.$box.find('input.value').on('change', _.bind(function(evt)
+		{
+			this.model.set('value', $(evt.target).val());
+		}, this));
+	},
+
+	updateBox: function()
+	{
+		joint.shapes.dialogue.BaseView.prototype.updateBox.apply(this, arguments);
+		var field = this.$box.find('input.value');
+		if (!field.is(':focus'))
+			field.val(this.model.get('value'));
+	},
+});
+
 function gameData()
 {
 	var cells = graph.toJSON().cells;
@@ -557,14 +579,18 @@ function gameData()
 				node.variable = cell.name;
 				node.value = cell.value;
 				node.next = null;
-                
+			}
+			else if (node.type == 'Action')
+			{
+				node.variable = cell.name;
+				node.value = cell.value;
+				node.next = null;
 			}
 
 			else if (node.type == 'Choice') {
 			    node.name = cell.name;
 			    node.title = cell.title;
 			    node.next = null;
-
 			}
 			else
 			{
@@ -599,7 +625,7 @@ function gameData()
 					}
 					source.branches[value] = target ? target.id : null;
 				}
-				else if ((source.type == 'Text' || source.type == 'Node') && target && target.type == 'Choice')
+				else if (source.type == 'Text' && target && target.type == 'Choice')
 				{
 					if (!source.choices)
 					{
@@ -948,7 +974,7 @@ $('#paper').contextmenu(
 		{ text: 'Choice', alias: '1-2', action: add(joint.shapes.dialogue.Choice) },
 		{ text: 'Branch', alias: '1-3', action: add(joint.shapes.dialogue.Branch) },
 		{ text: 'Set', alias: '1-4', action: add(joint.shapes.dialogue.Set) },
-		{ text: 'Node', alias: '1-5', action: add(joint.shapes.dialogue.Node) },
+		{ text: 'Action', alias: '1-5', action: add(joint.shapes.dialogue.Action) },
 		{ type: 'splitLine' },
 		{ text: 'Save', alias: '2-1', action: save },
 		{ text: 'Load', alias: '2-2', action: load },
